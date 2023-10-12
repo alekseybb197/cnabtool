@@ -1,0 +1,17 @@
+/.idea
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+coverage.out
+/dist
+.envrc
+.DS_Store
+.talismanrc
+/test
+/bin
+t*.sh
