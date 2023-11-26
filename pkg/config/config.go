@@ -31,15 +31,16 @@ type Config data.Config
 // make new default config
 
 func New() *Config {
-	cnf := &Config{}
-	cnf.Verbosity = ConfigDefaultVerbosity // set default
-	cnf.Timeout = ConfigDefaultTimeout
-	cnf.Client = ConfigDefaultClient
-	cnf.Unsecure = false
-	cnf.Scheme = ConfigDefaultScheme
-	data.Gc = (*data.Config)(cnf)
-
-	return cnf
+	if data.Gc == nil {
+		cnf := &Config{}
+		cnf.Verbosity = ConfigDefaultVerbosity // set default
+		cnf.Timeout = ConfigDefaultTimeout
+		cnf.Client = ConfigDefaultClient
+		cnf.Unsecure = false
+		cnf.Scheme = ConfigDefaultScheme
+		data.Gc = (*data.Config)(cnf)
+	}
+	return (*Config)(data.Gc)
 }
 
 // Initial config from file, environment and etc.

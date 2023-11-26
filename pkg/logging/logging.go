@@ -9,6 +9,7 @@ import (
 	"cnabtool/pkg/data"
 	"encoding/json"
 	"log"
+	"strings"
 )
 
 const (
@@ -21,31 +22,31 @@ const (
 
 func Error(point, mess string) {
 	if data.Gc.Verbosity >= LogErrorLevel {
-		log.Printf("%s >> %s\n", point, mess)
+		log.Printf("%s >> %s\n", point, strings.ReplaceAll(mess, data.Gc.Credentials.Password, "******"))
 	}
 }
 
 func Fatal(point, mess string) {
 	if data.Gc.Verbosity >= LogErrorLevel {
-		log.Fatalf("%s >> %s\n", point, mess)
+		log.Fatalf("%s >> %s\n", point, strings.ReplaceAll(mess, data.Gc.Credentials.Password, "******"))
 	}
 }
 
 func Message(point, mess string) {
 	if data.Gc.Verbosity >= LogNormalLevel {
-		log.Printf("%s >> %s\n", point, mess)
+		log.Printf("%s >> %s\n", point, strings.ReplaceAll(mess, data.Gc.Credentials.Password, "******"))
 	}
 }
 
 func Info(point, mess string) {
 	if data.Gc.Verbosity >= LogInfoLevel {
-		log.Printf("%s >> %s\n", point, mess)
+		log.Printf("%s >> %s\n", point, strings.ReplaceAll(mess, data.Gc.Credentials.Password, "******"))
 	}
 }
 
 func Debug(point, mess string) {
 	if data.Gc.Verbosity >= LogDebugLevel {
-		log.Printf("%s >> %s\n", point, mess)
+		log.Printf("%s >> %s\n", point, strings.ReplaceAll(mess, data.Gc.Credentials.Password, "******"))
 	}
 }
 
