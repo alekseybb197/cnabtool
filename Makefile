@@ -1,5 +1,5 @@
 PROJECT=$(shell basename "$(PWD)")
-APPVERS=0.1.0
+APPVERS=0.1.1
 GITCOMMIT=$(shell git rev-parse --short HEAD)
 GOFLAGS=-trimpath -ldflags "-w -s -X 'cnabtool/cmd.Version=${APPVERS}' -X 'cnabtool/cmd.Commit=${GITCOMMIT}'"
 GO111MODULE=on

@@ -38,9 +38,8 @@ func (cc *Config) DeleteCnab(cl *client.RegClient) {
 	for _, tag := range tagList {
 
 		url := data.Scheme + "://" + data.Registry + "/v2/" + data.Repository + "/manifests/" + data.ItemByTag[tag].Digest
-		if data.Gc.Verbosity >= logging.LogNormalLevel {
-			fmt.Printf("Delete %s %s\n", data.ItemByTag[tag].Annotation, url)
-		}
+
+		logging.Message(fmt.Sprintf("Delete %s %s", data.ItemByTag[tag].Annotation, url))
 		if cc.DryRun { // do nothing if dry run mode
 			continue
 		}
@@ -50,7 +49,7 @@ func (cc *Config) DeleteCnab(cl *client.RegClient) {
 		} else if res != nil {
 			//fmt.Printf("Delete %s %+v\n\n", tag, res)
 			if res.StatusCode == 202 {
-				logging.Info(fmt.Sprintf("Item %s was deleted successfully", tag))
+				logging.Message(fmt.Sprintf("Item %s was deleted successfully", tag))
 			} else {
 				logging.Error(fmt.Sprintf("Error %d", res.StatusCode))
 
