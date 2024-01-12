@@ -37,4 +37,6 @@ The tool for manipulating cnab artifacts.
 
 ### Delete CNAB
 
+`cnabtool content delete registry.example.com/project/cnab:tag --dry-run`
+
 `cnabtool content delete registry.example.com/project/cnab:tag`
