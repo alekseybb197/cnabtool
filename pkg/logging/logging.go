@@ -8,7 +8,10 @@ import (
 	"bytes"
 	"cnabtool/pkg/data"
 	"encoding/json"
+	"fmt"
 	"log"
+	"path"
+	"runtime"
 	"strings"
 )
 
@@ -20,37 +23,69 @@ const (
 	LogDebugLevel  = 4 // debug messages + errors
 )
 
-func Error(point, mess string) {
+func maskcredentials(mess string) string {
+	res := mess
+	for _, secret := range data.Sensitives {
+		s := strings.ReplaceAll(res, secret, "*******")
+		res = s
+	}
+	return res
+}
+
+func Error(mess string) {
+	data.Gc.Error++
+	pc, file, lineNo, ok := runtime.Caller(1)
+	point := "n/a"
+	if ok {
+		funcName := runtime.FuncForPC(pc).Name()
+		fileName := path.Base(file)
+		point = fmt.Sprintf("%s - %s - %d", fileName, funcName, lineNo)
+	}
 	if data.Gc.Verbosity >= LogErrorLevel {
-		log.Printf("%s >> %s\n", point, strings.ReplaceAll(mess, data.Gc.Credentials.Password, "******"))
+		log.Printf("%s Error >> %s\n", point, maskcredentials(mess))
 	}
 }
 
-func Fatal(point, mess string) {
+func Fatal(mess string) {
+	pc, file, lineNo, ok := runtime.Caller(1)
+	point := "n/a"
+	if ok {
+		funcName := runtime.FuncForPC(pc).Name()
+		fileName := path.Base(file)
+		point = fmt.Sprintf("%s - %s - %d", fileName, funcName, lineNo)
+	}
 	if data.Gc.Verbosity >= LogErrorLevel {
-		log.Fatalf("%s >> %s\n", point, strings.ReplaceAll(mess, data.Gc.Credentials.Password, "******"))
+		log.Fatalf("%s Error >> %s\n", point, maskcredentials(mess))
 	}
 }
 
-func Message(point, mess string) {
+func Message(mess string) {
 	if data.Gc.Verbosity >= LogNormalLevel {
-		log.Printf("%s >> %s\n", point, strings.ReplaceAll(mess, data.Gc.Credentials.Password, "******"))
+		log.Printf(">> %s\n", maskcredentials(mess))
 	}
 }
 
-func Info(point, mess string) {
+func Info(mess string) {
 	if data.Gc.Verbosity >= LogInfoLevel {
-		log.Printf("%s >> %s\n", point, strings.ReplaceAll(mess, data.Gc.Credentials.Password, "******"))
+		log.Printf("Info >> %s\n", maskcredentials(mess))
 	}
 }
 
-func Debug(point, mess string) {
+func Debug(mess string) {
+	pc, file, lineNo, ok := runtime.Caller(1)
+	point := "n/a"
+	if ok {
+		funcName := runtime.FuncForPC(pc).Name()
+		fileName := path.Base(file)
+		point = fmt.Sprintf("%s - %s - %d", fileName, funcName, lineNo)
+	}
+
 	if data.Gc.Verbosity >= LogDebugLevel {
-		log.Printf("%s >> %s\n", point, strings.ReplaceAll(mess, data.Gc.Credentials.Password, "******"))
+		log.Printf("Debug: %s >> %s\n", point, maskcredentials(mess))
 	}
 }
 
-//
+// PrettyString convert json in string to pretty format
 
 func PrettyString(str string) (string, error) {
 	var prettyJSON bytes.Buffer

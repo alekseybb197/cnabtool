@@ -37,6 +37,7 @@ func New() *Config {
 		cnf.Timeout = ConfigDefaultTimeout
 		cnf.Client = ConfigDefaultClient
 		cnf.Unsecure = false
+		cnf.Raw = false
 		cnf.Scheme = ConfigDefaultScheme
 		data.Gc = (*data.Config)(cnf)
 	}
@@ -50,7 +51,7 @@ func (cnf *Config) InitConfig(cmd *cobra.Command) error {
 	// try apply custom config
 	customconfig := cmd.Flags().Lookup("config").Value.String()
 	if len(customconfig) != 0 {
-		logging.Info("InitConfig", "use custom config "+customconfig)
+		logging.Info("use custom config "+customconfig)
 		file_extension := filepath.Ext(customconfig)
 		viper.SetConfigName(strings.TrimSuffix(filepath.Base(customconfig), file_extension))
 		viper.SetConfigType(strings.TrimPrefix(file_extension, "."))
@@ -68,11 +69,11 @@ func (cnf *Config) InitConfig(cmd *cobra.Command) error {
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			// Config file was found but another error was produced
-			logging.Error("InitConfig", fmt.Sprintf("fatal error config file: %s", err.Error()))
+			logging.Error(fmt.Sprintf("fatal error config file: %s", err.Error()))
 			return err
 		} else {
 			if len(customconfig) != 0 {
-				logging.Fatal("InitConfig", "can not found custom config file "+customconfig)
+				logging.Fatal("can not found custom config file "+customconfig)
 			}
 		}
 	}
@@ -84,7 +85,7 @@ func (cnf *Config) InitConfig(cmd *cobra.Command) error {
 
 	// fetch root level values
 	if err := viper.Unmarshal(cnf); err != nil {
-		logging.Error("InitConfig", fmt.Sprintf("unable to decode into config struct, %s", err.Error()))
+		logging.Error(fmt.Sprintf("unable to decode into config struct, %s", err.Error()))
 		return err
 	}
 

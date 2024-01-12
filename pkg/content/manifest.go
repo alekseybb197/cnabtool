@@ -5,56 +5,47 @@ import (
 	"cnabtool/pkg/data"
 	"cnabtool/pkg/logging"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"net/http"
 	"regexp"
 	"strings"
-	"time"
 )
+
+// type tricks
 
 type Config data.Config
 
 // get manifest by reference
 
-func (cc *Config) GetManifest(reference string) {
+func (cc *Config) GetManifest(reference string) (*client.RegResponse, *client.RegClient, error) {
 
-	config := (*client.Config)(cc)
-	//config.Init()
-
-	// make client
-	cl := client.RegClient{
-		Reference: reference,
-		Scheme:    cc.Scheme,
-		Credentials: data.Credentials{
-			Username: cc.Credentials.Username,
-			Password: cc.Credentials.Password,
-		},
-		Client: cc.Client,
-		WebClient: http.Client{
-			Timeout: time.Millisecond * time.Duration(cc.Timeout),
-		},
-	}
+	cl := client.NewRegClient((*client.Config)(cc), reference)
 
 	// parse argument
-	err := client.ParseReference(&cl)
+	err := cl.ParseReference()
 	if err != nil {
-		logging.Fatal("get content", fmt.Sprintf("%+v", err))
+		err_line := fmt.Sprintf("invalid reference %+v", err)
+		logging.Error(err_line)
+		return nil, nil, errors.New(err_line)
 	}
-	logging.Debug("GetManifest", fmt.Sprintf("client %+v", cl))
+	logging.Debug(fmt.Sprintf("Client %+v", cl))
+
+	// save current project root
+	data.Repository = cl.Repository
+	data.Registry = cl.Registry
+	data.Scheme = cl.Scheme
 
 	// do request
-	regres := config.GetRegIndex(&cl)
-	if regres != nil {
-		logging.Debug("GetManifest", fmt.Sprintf("response content %+v", regres))
-	}
-	ResponsePrettyPrint(regres)
+	regres, err := cl.GetRegIndex()
+	//if regres != nil {
+	//	logging.Debug(fmt.Sprintf("response content %+v", regres))
+	//}
+	return regres, cl, err
 }
 
 // pretty print RegResponse
 
 func ResponsePrettyPrint(regres *client.RegResponse) {
-
-	//logging.Info("ResponsePrettyPrint", fmt.Sprintf("content1 %+v", regres))
 
 	rout, err := json.Marshal(regres)
 	if err == nil {
@@ -69,7 +60,7 @@ func ResponsePrettyPrint(regres *client.RegResponse) {
 		dropunicode := regexp.MustCompile(`\\u....`)
 		cleanout := dropunicode.ReplaceAllString(sout5, "")
 
-		logging.Info("ResponsePrettyPrint", fmt.Sprintf("content %+v", cleanout))
+		//logging.Debug(fmt.Sprintf("content %+v", cleanout))
 		if jsonres, err := logging.PrettyString(cleanout); err == nil {
 			fmt.Println(jsonres)
 		} else {

@@ -6,7 +6,9 @@ package cmd
 
 import (
 	"cnabtool/pkg/config"
+	"cnabtool/pkg/data"
 	"cnabtool/pkg/logging"
+	"encoding/base64"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"strconv"
@@ -20,14 +22,19 @@ func BuildCliCmd(cnf *config.Config) *cobra.Command {
 	// rootCmd represents the base command when called without any subcommands
 	var rootCmd = &cobra.Command{
 		Use:   "cnabtool",
-		Short: "The confluence tool",
-		Long: `The tool for manipulating confluence content.
-
-Support verbs get, put and update`,
+		Short: "The cnab tool",
+		Long: `The tool for manipulating cnab content.
+`,
 
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// You can bind cobra and viper in a few locations, but PersistencePreRunE on the root command works well
 			ret := cnf.InitConfig(cmd)
+
+			// add sensitives to global list
+			data.Sensitives = append(data.Sensitives, data.Gc.Credentials.Password)
+			basicauth := []byte(data.Gc.Credentials.Username + ":" + data.Gc.Credentials.Password)
+			data.Sensitives = append(data.Sensitives, base64.StdEncoding.EncodeToString(basicauth))
+
 			return ret
 		},
 	}
@@ -56,13 +63,19 @@ Support verbs get, put and update`,
 	rootCmd.AddCommand(contentCmd)
 
 	// command verb "get" for "content"
-	contentCmd.AddCommand(GetContentCmd(cnf))
+	contentCmd.AddCommand(GetManifestCmd(cnf))
 
-	// command verb "get" for "content"
-	contentCmd.AddCommand(InspectContentCmd(cnf))
+	// command verb "inspect" for "content"
+	inspectContentCmd := InspectContentCmd(cnf)
+	contentCmd.AddCommand(inspectContentCmd)
+	// local flag raw outputs
+	inspectContentCmd.Flags().BoolVarP(&cnf.Raw, "raw", "", false, "Raw format for inspected content")
 
-	// command verb "get" for "content"
-	contentCmd.AddCommand(DeleteContentCmd(cnf))
+	// command verb "delete" for "content"
+	deleteContentCmd := DeleteContentCmd(cnf)
+	contentCmd.AddCommand(deleteContentCmd)
+	// local flag dry-run
+	deleteContentCmd.Flags().BoolVarP(&cnf.DryRun, "dry-run", "", false, "Dry-run mode")
 
 	return rootCmd
 }

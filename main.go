@@ -7,6 +7,7 @@ package main
 import (
 	"cnabtool/cmd"
 	"cnabtool/pkg/config"
+	"cnabtool/pkg/data"
 	"os"
 )
 
@@ -24,7 +25,9 @@ func main() {
 
 	cli := cmd.BuildCliCmd(cnf)
 
-	if err := cli.Execute(); err != nil {
+	err := cli.Execute()
+
+	if err != nil || data.Gc.Error > 0 {
 		os.Exit(1)
 	}
 }
