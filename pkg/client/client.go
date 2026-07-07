@@ -251,6 +251,26 @@ func (cl *RegClient) WebDelete(url string) (*http.Response, error) {
 	return res, nil
 }
 
+// WebRequestEx - provide arbitrary HTTP request to any URL (e.g., Artifactory REST API)
+func (cl *RegClient) WebRequestEx(method, url string) (*http.Response, error) {
+	req, err := http.NewRequest(method, url, nil)
+	if err != nil {
+		logging.Error(fmt.Sprintf("%+v", err.Error()))
+		return nil, err
+	}
+	req.Header.Set("User-Agent", cl.Client)
+	req.SetBasicAuth(cl.Credentials.Username, cl.Credentials.Password)
+
+	logging.Debug(fmt.Sprintf("request %+v", req))
+
+	res, err := cl.WebClient.Do(req)
+	if err != nil {
+		logging.Error(fmt.Sprintf("%+v", err.Error()))
+		return nil, err
+	}
+	return res, nil
+}
+
 // FillResponse - do decode response
 
 func (regres *RegResponse) FillResponse(res *http.Response) error {

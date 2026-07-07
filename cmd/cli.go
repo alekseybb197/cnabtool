@@ -1,5 +1,5 @@
 /*
-Copyright © 2023 Aleksey Barabanov <alekseybb@gmail.comS>
+Copyright © 2023 Aleksey Barabanov <alekseybb@gmail.com>
 */
 
 package cmd
@@ -9,9 +9,10 @@ import (
 	"cnabtool/pkg/data"
 	"cnabtool/pkg/logging"
 	"encoding/base64"
+	"strconv"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"strconv"
 )
 
 var Version string
