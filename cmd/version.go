@@ -1,5 +1,5 @@
 /*
-Copyright © 2023 Aleksey Barabanov <alekseybb@gmail.comS>
+Copyright © 2023 Aleksey Barabanov <alekseybb@gmail.com>
 */
 
 package cmd
@@ -7,6 +7,7 @@ package cmd
 import (
 	"cnabtool/pkg/config"
 	"fmt"
+
 	"github.com/spf13/cobra"
 )
 

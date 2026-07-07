@@ -1,5 +1,5 @@
 /*
-Copyright © 2023 Aleksey Barabanov <alekseybb@gmail.comS>
+Copyright © 2023 Aleksey Barabanov <alekseybb@gmail.com>
 */
 
 package cmd
@@ -11,6 +11,7 @@ import (
 	"cnabtool/pkg/data"
 	"cnabtool/pkg/logging"
 	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -157,10 +158,17 @@ selected cnab`,
 						config.ShowCnabReport(cl)
 					}
 					config.DeleteCnab(cl)
+					config.PurgeEmptyFolders(cl)
 				}
 			}
 		},
 	}
+
+	// local flags
+	deleteContentCmd.Flags().BoolVarP(&cnf.Purge, "purge", "", false,
+		"Remove empty parent folders via Artifactory API after delete")
+	deleteContentCmd.Flags().StringVarP(&cnf.RepoKey, "repo-key", "", "",
+		"Artifactory repository key (auto-derived from hostname by default)")
 
 	return deleteContentCmd
 }

@@ -1,5 +1,5 @@
 /*
-Copyright © 2023 Aleksey Barabanov <alekseybb@gmail.comS>
+Copyright © 2023 Aleksey Barabanov <alekseybb@gmail.com>
 */
 
 package main

@@ -1,5 +1,5 @@
 /*
-Copyright © 2023 Aleksey Barabanov <alekseybb@gmail.comS>
+Copyright © 2023 Aleksey Barabanov <alekseybb@gmail.com>
 */
 
 package data
@@ -15,6 +15,8 @@ type Config struct {
 	Scheme    string `mapstructure:"scheme"`    // url scheme
 	Raw       bool   `mapstructure:"raw"`       // raw format - only for inspect content
 	DryRun    bool   `mapstructure:"dryrun"`    // dry-run mode - only for delete content
+	Purge     bool   `mapstructure:"purge"`     // purge empty folders via Artifactory API
+	RepoKey   string `mapstructure:"repokey"`   // Artifactory repository key (overrides hostname parsing)
 	Error     int    // errors count
 	// credentials
 	Credentials Credentials `mapstructure:"credentials"`

@@ -1,5 +1,5 @@
 /*
-Copyright © 2023 Aleksey Barabanov <alekseybb@gmail.comS>
+Copyright © 2023 Aleksey Barabanov <alekseybb@gmail.com>
 */
 
 package logging
@@ -62,6 +62,19 @@ func Fatal(mess string) {
 func Message(mess string) {
 	if data.Gc.Verbosity >= LogNormalLevel {
 		log.Printf(">> %s\n", maskcredentials(mess))
+	}
+}
+
+func Normal(mess string) {
+	pc, file, lineNo, ok := runtime.Caller(1)
+	point := "n/a"
+	if ok {
+		funcName := runtime.FuncForPC(pc).Name()
+		fileName := path.Base(file)
+		point = fmt.Sprintf("%s - %s - %d", fileName, funcName, lineNo)
+	}
+	if data.Gc.Verbosity >= LogNormalLevel {
+		log.Printf("%s Info >> %s\n", point, maskcredentials(mess))
 	}
 }
 

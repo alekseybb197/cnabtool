@@ -1,5 +1,5 @@
 /*
-Copyright © 2023 Aleksey Barabanov <alekseybb@gmail.comS>
+Copyright © 2023 Aleksey Barabanov <alekseybb@gmail.com>
 */
 
 package config
@@ -8,11 +8,12 @@ import (
 	"cnabtool/pkg/data"
 	"cnabtool/pkg/logging"
 	"fmt"
+	"path/filepath"
+	"strings"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"path/filepath"
-	"strings"
 )
 
 const (
@@ -51,7 +52,7 @@ func (cnf *Config) InitConfig(cmd *cobra.Command) error {
 	// try apply custom config
 	customconfig := cmd.Flags().Lookup("config").Value.String()
 	if len(customconfig) != 0 {
-		logging.Info("use custom config "+customconfig)
+		logging.Info("use custom config " + customconfig)
 		file_extension := filepath.Ext(customconfig)
 		viper.SetConfigName(strings.TrimSuffix(filepath.Base(customconfig), file_extension))
 		viper.SetConfigType(strings.TrimPrefix(file_extension, "."))
@@ -73,7 +74,7 @@ func (cnf *Config) InitConfig(cmd *cobra.Command) error {
 			return err
 		} else {
 			if len(customconfig) != 0 {
-				logging.Fatal("can not found custom config file "+customconfig)
+				logging.Fatal("can not found custom config file " + customconfig)
 			}
 		}
 	}

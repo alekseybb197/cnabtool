@@ -5,9 +5,11 @@ A CLI utility for inspecting and manipulating [CNAB](https://cnab.io) (Cloud Nat
 ## Features
 
 - **Fetch manifests** — retrieve the OCI index manifest of a CNAB project as formatted JSON
-- **Inspect projects** — walk the full dependency graph of a CNAB project, resolving all component tags, uplinks, and downlinks
+- **Inspect projects** — walk the full dependency graph of a CNAB project, resolving all component tags, uplinks, and downlinks (including untagged manifests)
 - **Delete projects** — safely remove a CNAB project from a registry, deleting leaf components before their parents
+- **Purge empty folders** — clean up empty "folders" in Artifactory after deletion with adaptive timeout detection
 - **Credential-safe logging** — passwords and basic auth tokens are automatically redacted from all log output
+- **Dry-run mode** — preview all operations without making changes
 
 ## Installation
 
@@ -111,6 +113,12 @@ cnabtool content delete registry.example.com/project/cnab:tag --dry-run
 
 # Actually delete the project
 cnabtool content delete registry.example.com/project/cnab:tag
+
+# Delete with folder cleanup (requires Artifactory)
+cnabtool content delete registry.example.com/project/cnab:tag --purge
+
+# Delete with explicit repo-key (when hostname differs from repo-key)
+cnabtool content delete registry.example.com/project/cnab:tag --purge --repo-key my-repo-key
 ```
 
 **Flags:**
@@ -118,6 +126,8 @@ cnabtool content delete registry.example.com/project/cnab:tag
 | Flag | Description | Default |
 |---|---|---|
 | `--dry-run` | Show items that would be deleted without performing deletions | `false` |
+| `--purge` | Remove empty parent folders via Artifactory API after delete | `false` |
+| `--repo-key` | Artifactory repository key (auto-derived from hostname by default) | — |
 
 ## How It Works
 
@@ -139,8 +149,9 @@ All three components (tag, digest) are optional. The parser handles:
 2. Fetch the top-level OCI index manifest via authenticated GET request
 3. Parse the index and register each component by its media type and annotations
 4. Iterate over all tags in the repository, fetching each manifest and resolving uplink/downlink chains
-5. Mark any references as "lost" if they cannot be resolved
-6. Output a JSON report (compact by default, full detail with `--raw`)
+5. Fetch untagged manifests by digest (config, invocation, component manifests)
+6. Mark any references as "lost" if they cannot be resolved
+7. Output a JSON report (compact by default, full detail with `--raw`)
 
 ### Deletion strategy
 
@@ -148,8 +159,71 @@ The delete command uses a **leaf-first** approach:
 
 1. Build the same dependency graph as inspect
 2. Identify leaf nodes — items referenced by exactly one parent
-3. Delete leaf nodes first, then their parents
-4. HTTP 202 indicates success; other status codes are logged with the response body
+3. Delete by **digest** (not tag) to handle untagged components correctly
+4. Skip items with `UpLinks > 1` (shared between parents)
+5. Issue `DELETE /manifests/<digest>` for each unique digest
+6. HTTP 202 indicates success; other status codes are logged with the response body
+
+### Purge flow (`--purge` flag)
+
+After deletion, `--purge` cleans up empty "folders" in Artifactory using the Artifactory REST API:
+
+1. Determine `repo-key` (from `--repo-key` flag or auto-derived from hostname via `deriveRepoKey()`)
+2. Start from `cl.Repository` path (e.g., `osmp/tmp/plugin-kes-linux/12.4.0.12/plugin-kes-linux`)
+3. Loop: `GET /artifactory/api/storage/{repoKey}/{path}?list` → if `children` is empty, delete folder; else stop
+4. Delete via `DELETE /artifactory/{repoKey}/{path}` with a dedicated 180-second timeout client
+5. Move up with `path.Dir()` and repeat until a non-empty folder, root, or adaptive threshold is reached
+6. **Adaptive termination:** if a DELETE takes >5× the average of previous deletions, the purge stops immediately — this prevents hanging on large parent directories (e.g., `osmp/tmp`)
+
+**Auto-derived repo-key:** `deriveRepoKey()` extracts the repo-key from hostname automatically (e.g., `osmp-docker-storage.repository.avp.ru` → `osmp-docker-storage`). Port numbers are stripped (`host:port` → `host`). The `--repo-key` flag is only needed when the repo-key differs from the hostname.
+
+**Dry-run transparency:** `--dry-run --purge` shows every folder check and potential deletion with `[dry-run] Purge: ...` messages.
+
+## Usage Examples
+
+```bash
+# Get manifest as pretty JSON
+cnabtool content manifest registry.example.com/project/cnab:tag
+
+# Inspect CNAB project dependency graph
+cnabtool content inspect registry.example.com/project/cnab:tag
+
+# Delete CNAB project (dry-run)
+cnabtool content delete registry.example.com/project/cnab:tag --dry-run
+
+# Delete CNAB project with folder cleanup
+cnabtool content delete registry.example.com/project/cnab:tag --purge
+
+# Delete with explicit repo-key (when hostname differs)
+cnabtool content delete registry.example.com/project/cnab:tag --purge --repo-key my-repo-key
+
+# Verbose debug output
+cnabtool content delete registry.example.com/project/cnab:tag --purge -v 4
+```
+
+## Logging Output Examples
+
+### Normal level (verbosity 2) — purge output
+
+```
+Purge: delete empty folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru/plugin-spp
+Purge: folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru/plugin-spp deleted in 200ms
+Purge: delete empty folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru
+Purge: folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru deleted in 150ms
+Purge: delete empty folder osmp/tmp/plugin-spp
+[warning] Purge: delete time 3m0s is >5× average 177ms. Parent folder likely too heavy. Stopping purge.
+Purge: completed
+```
+
+### Debug level (verbosity 4) — folder checks
+
+```
+>> Purge: check folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru/plugin-spp for emptiness
+Purge: delete empty folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru/plugin-spp
+Purge: folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru/plugin-spp deleted in 200ms
+>> Purge: check folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru for emptiness
+Purge: folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru is not empty, stopping
+```
 
 ## Architecture
 
@@ -162,20 +236,25 @@ cnabtool/
 │   └── version.go             version subcommand
 ├── pkg/
 │   ├── client/
-│   │   ├── client.go          OCI registry HTTP client (GET/DELETE)
-│   │   └── client_test.go     ParseReference unit tests
+│   │   ├── client.go          OCI registry HTTP client (GET/DELETE/WebRequestEx)
+│   │   └── client_test.go     ParseReference, NewRegClient, FillResponse tests
 │   ├── config/
-│   │   └── config.go          Viper-based config (file/env/flags)
+│   │   ├── config.go          Viper-based config (file/env/flags)
+│   │   └── config_test.go     Defaults, singleton, precedence tests
 │   ├── content/
 │   │   ├── manifest.go        GetManifest + ResponsePrettyPrint
-│   │   ├── inspect.go         Dependency graph inspection
-│   │   └── delete.go          Leaf-first deletion
+│   │   ├── inspect.go         Dependency graph inspection + untagged fetch
+│   │   ├── delete.go          Digest-based leaf-first deletion
+│   │   └── purge.go           PurgeEmptyFolders (Artifactory API cleanup)
 │   ├── data/
-│   │   └── data.go            Data models + global state
+│   │   ├── data.go            Data models + global state (Gc, Sensitives, maps)
+│   │   └── data_test.go       All types, global state, link management tests
 │   └── logging/
-│       └── logging.go         Structured logging with credential redaction
-├── Makefile                   Build, test, lint, dist targets
-└── go.mod                     Go module definition
+│       ├── logging.go         5-level structured logging with credential redaction
+│       └── logging_test.go    All log levels, masking, PrettyString tests
+├── fixes/                     (excluded — patched yaml.v3)
+├── bin/                       Build output
+└── Makefile                   Build, test, lint, dist targets
 ```
 
 ### Key packages
@@ -185,7 +264,7 @@ cnabtool/
 | `cmd` | CLI command definitions using Cobra |
 | `config` | Configuration loading via Viper (file → env → flags) |
 | `client` | HTTP client for OCI registry interactions with Basic Auth and media type fallback |
-| `content` | CNAB content operations: manifest retrieval, inspection, deletion |
+| `content` | CNAB content operations: manifest retrieval, inspection, deletion, purge |
 | `data` | All data structures: `Config`, `RegIndex`, `ProjectList`, lookup maps |
 | `logging` | Five-level structured logging; sensitive data redaction in all output |
 
