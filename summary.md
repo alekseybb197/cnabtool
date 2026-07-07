@@ -98,11 +98,11 @@ cnabtool/
 
 ### Purge flow (`--purge` flag)
 1. After deletion, determine `repo-key` (from `--repo-key` flag or auto-derived from hostname via `deriveRepoKey()`)
-2. Start from `cl.Repository` path (e.g., `osmp/tmp/plugin-kes-linux/12.4.0.12/plugin-kes-linux`)
+2. Start from `cl.Repository` path (e.g., `cnab/myapp/1.0.0/myapp`)
 3. Loop: `GET /artifactory/api/storage/{repoKey}/{path}?list` → if `children` is empty, delete folder; else stop
 4. Delete via `DELETE /artifactory/{repoKey}/{path}` with a dedicated 180-second timeout client
 5. Move up with `path.Dir()` and repeat until a non-empty folder, root, or adaptive threshold is reached
-6. **Adaptive termination:** if a DELETE takes >5× the average of previous DELETEs, stop — this prevents hanging on large parent directories (e.g., `osmp/tmp`)
+6. **Adaptive termination:** if a DELETE takes >5× the average of previous DELETEs, stop — this prevents hanging on large parent directories
 7. In `--dry-run`, every folder check and potential deletion is logged with `[dry-run] Purge: ...`
 
 ---
@@ -144,7 +144,7 @@ cnabtool/
 **Solution:**
 - Dedicated `http.Client` with **180-second timeout** for purge DELETE operations
 - **Graceful timeout handling:** `*url.Error.Timeout()` is treated as a warning, not a fatal error — the purge loop breaks but the program completes normally
-- **Adaptive termination:** tracks DELETE durations in a slice; if a DELETE takes >5× the average of previous deletions, the purge stops immediately (prevents hanging on large parent directories like `osmp/tmp`)
+- **Adaptive termination:** tracks DELETE durations in a slice; if a DELETE takes >5× the average of previous deletions, the purge stops immediately (prevents hanging on large parent directories)
 
 ### v0.1.1 — Logging level refinement
 
@@ -156,11 +156,11 @@ cnabtool/
 - **Level 3+ (Info/Debug):** storage API checks, "folder not empty" messages
 - Result on level 2:
   ```
-  Purge: delete empty folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru/plugin-spp
-  Purge: folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru/plugin-spp deleted in 200ms
-  Purge: delete empty folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru
-  Purge: folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru deleted in 150ms
-  Purge: delete empty folder osmp/tmp/plugin-spp
+  Purge: delete empty folder cnab/myapp/1.0.0/myapp/config
+  Purge: folder cnab/myapp/1.0.0/myapp/config deleted in 200ms
+  Purge: delete empty folder cnab/myapp/1.0.0/myapp
+  Purge: folder cnab/myapp/1.0.0/myapp deleted in 150ms
+  Purge: delete empty folder cnab/myapp
   [warning] Purge: delete time 3m0s is >5× average 177ms. Parent folder likely too heavy. Stopping purge.
   Purge: completed
   ```
@@ -220,7 +220,7 @@ cnabtool content delete registry.example.com/project/cnab:tag --purge -v 4
 - **Single global state** — `Gc` (global config pointer) and package-level maps (`ItemByDigest`, `ItemByTag`, `ItemsQueue`) in `pkg/data` serve as mutable global state shared across content operations. This works for a CLI tool but may need scoping for testability or concurrency.
 - **Sensitive data handling** — Passwords and basic auth tokens are explicitly tracked in `Sensitives` and redacted from all log output, which is a good security practice for a registry tool.
 - **Vendor-specific extension** — `--purge` adds Artifactory REST API dependency (`/api/storage/`, `/artifactory/`). This is not portable to other OCI registries (Harbor, Quay, etc.). Consider abstracting the purge logic behind an interface if multi-registry support is planned.
-- **Auto-derived repo-key** — `deriveRepoKey()` extracts the repo-key from hostname automatically (e.g., `osmp-docker-storage.repository.avp.ru` → `osmp-docker-storage`). Port numbers are stripped (`host:port` → `host`).
+- **Auto-derived repo-key** — `deriveRepoKey()` extracts the repo-key from hostname automatically (e.g., `registry.example.com` → `registry`). Port numbers are stripped (`host:port` → `host`).
 - **Dry-run transparency** — `--dry-run --purge` shows every folder check and potential deletion, making it easy to verify the purge path before committing.
 - **Adaptive purge termination** — The >5× average timeout detection prevents hanging on large parent directories without requiring arbitrary timeout values.
 - **Patch dependency** — `yaml.v3` is replaced with a local patched version in `fixes/yaml.v3`, suggesting a compatibility or bug-fix workaround.
