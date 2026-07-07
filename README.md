@@ -169,13 +169,13 @@ The delete command uses a **leaf-first** approach:
 After deletion, `--purge` cleans up empty "folders" in Artifactory using the Artifactory REST API:
 
 1. Determine `repo-key` (from `--repo-key` flag or auto-derived from hostname via `deriveRepoKey()`)
-2. Start from `cl.Repository` path (e.g., `osmp/tmp/plugin-kes-linux/12.4.0.12/plugin-kes-linux`)
+2. Start from `cl.Repository` path (e.g., `cnab/myapp/1.0.0/myapp`)
 3. Loop: `GET /artifactory/api/storage/{repoKey}/{path}?list` → if `children` is empty, delete folder; else stop
 4. Delete via `DELETE /artifactory/{repoKey}/{path}` with a dedicated 180-second timeout client
 5. Move up with `path.Dir()` and repeat until a non-empty folder, root, or adaptive threshold is reached
-6. **Adaptive termination:** if a DELETE takes >5× the average of previous deletions, the purge stops immediately — this prevents hanging on large parent directories (e.g., `osmp/tmp`)
+6. **Adaptive termination:** if a DELETE takes >5× the average of previous deletions, the purge stops immediately — this prevents hanging on large parent directories
 
-**Auto-derived repo-key:** `deriveRepoKey()` extracts the repo-key from hostname automatically (e.g., `osmp-docker-storage.repository.avp.ru` → `osmp-docker-storage`). Port numbers are stripped (`host:port` → `host`). The `--repo-key` flag is only needed when the repo-key differs from the hostname.
+**Auto-derived repo-key:** `deriveRepoKey()` extracts the repo-key from hostname automatically (e.g., `registry.example.com` → `registry`). Port numbers are stripped (`host:port` → `host`). The `--repo-key` flag is only needed when the repo-key differs from the hostname.
 
 **Dry-run transparency:** `--dry-run --purge` shows every folder check and potential deletion with `[dry-run] Purge: ...` messages.
 
@@ -199,30 +199,6 @@ cnabtool content delete registry.example.com/project/cnab:tag --purge --repo-key
 
 # Verbose debug output
 cnabtool content delete registry.example.com/project/cnab:tag --purge -v 4
-```
-
-## Logging Output Examples
-
-### Normal level (verbosity 2) — purge output
-
-```
-Purge: delete empty folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru/plugin-spp
-Purge: folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru/plugin-spp deleted in 200ms
-Purge: delete empty folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru
-Purge: folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru deleted in 150ms
-Purge: delete empty folder osmp/tmp/plugin-spp
-[warning] Purge: delete time 3m0s is >5× average 177ms. Parent folder likely too heavy. Stopping purge.
-Purge: completed
-```
-
-### Debug level (verbosity 4) — folder checks
-
-```
->> Purge: check folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru/plugin-spp for emptiness
-Purge: delete empty folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru/plugin-spp
-Purge: folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru/plugin-spp deleted in 200ms
->> Purge: check folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru for emptiness
-Purge: folder osmp/tmp/plugin-spp/7.0.0.97.0.1.0-ru is not empty, stopping
 ```
 
 ## Architecture
