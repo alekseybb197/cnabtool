@@ -22,7 +22,7 @@ func TestParseReference(t *testing.T) {
 			Reference: tl,
 		}
 
-		if err := ParseReference(&cl); err != nil {
+		if err := cl.ParseReference(); err != nil {
 			t.Errorf("Should not produce an error for %s", tl)
 		}
 

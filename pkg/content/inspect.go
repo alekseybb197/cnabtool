@@ -7,8 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/buger/jsonparser"
 	"strconv"
+
+	"github.com/buger/jsonparser"
 )
 
 // AddCnab add cnab to ItemByDigest collection
@@ -205,8 +206,26 @@ func (cc *Config) InspectCnab(cl *client.RegClient) {
 						cri.Annotation = link.Annotation
 					}
 				} else {
-					logging.Error(fmt.Sprintf("For cnab %s component %s was not found", item.Tag, link.Digest))
-					item.Lost++
+					// DownLink not found by digest — try fetching it directly from the registry.
+					// This handles "untagged" manifests (config, invocation, etc.) that exist in the
+					// OCI Image Index but have no corresponding tag.
+					cl.Digest = link.Digest
+					cl.Tag = ""
+					regres, err := cl.GetRegIndex()
+					if err != nil || regres.Status != 200 {
+						logging.Error(fmt.Sprintf("For cnab %s component %s was not found by digest %s: %v (status %d)", item.Tag, link.Digest, link.Digest, err, regres.Status))
+						item.Lost++
+						continue
+					}
+
+					// Register the fetched manifest in the global maps
+					AddIndex(regres, "")
+					// Re-lookup by the response digest (may differ from request digest)
+					cri, ok = data.ItemByDigest[regres.Digest]
+					if ok {
+						cri.UpLinks = append(cri.UpLinks, data.CnabItem{Digest: item.Digest, Annotation: item.Annotation})
+						cri.Annotation = link.Annotation
+					}
 				}
 			}
 		}
