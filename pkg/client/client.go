@@ -133,6 +133,20 @@ var manifest_discovery = []string{
 	MediaTypeJson,
 }
 
+// acceptHeader returns a comma-separated Accept header with all supported manifest types.
+// Order: multi-arch first (index/list), then single-manifest (OCI → Docker), legacy last.
+func (cl *RegClient) acceptHeader() string {
+	return strings.Join([]string{
+		MediaTypeOciIndex,
+		MediaTypeV2List,
+		MediaTypeOciManifest,
+		MediaTypeV2Manifest,
+		MediaTypeV1Pretty,
+		MediaTypeV1Manifest,
+		MediaTypeJson,
+	}, ", ")
+}
+
 type RegResponse struct {
 	Reference string // request
 	Status    int    // status
@@ -378,45 +392,41 @@ func (cl *RegClient) GetRegIndex() (*RegResponse, error) {
 		Reference: cl.Reference,
 	}
 
-	// loop for success
-	for _, ml := range manifest_discovery {
-
-		regres.Media = ml
-		res, err := cl.WebRequest(url, ml)
-
-		// unrecoverable error
-		if err != nil {
-			logging.Error(fmt.Sprintf("response is nil, %+v", err.Error()))
-			return regres, err
-		}
-
-		logging.Debug(fmt.Sprintf("status %d, response headers %+v", res.StatusCode, res.Header))
-
-		if err := regres.FillResponse(res); err != nil {
-			err_line := fmt.Sprintf("failed to decode response %s", err.Error())
-			logging.Error(err_line)
-			return regres, errors.New(err_line)
-		}
-
-		switch res.StatusCode {
-		case 200:
-			break
-		case 401:
-			err_line := fmt.Sprintf("unauthorized: %s", strings.Join(strings.Fields(regres.Content), " "))
-			logging.Error(err_line)
-			return regres, errors.New(err_line)
-		case 404:
-			err_line := fmt.Sprintf("manifest not found: %s", strings.Join(strings.Fields(regres.Content), " "))
-			logging.Error(err_line)
-			return regres, errors.New(err_line)
-		case 400:
-			logging.Debug(fmt.Sprintf("failed to fetch data: %s", res.Status))
-			continue
-		default:
-			err_line := fmt.Sprintf("failed to fetch data %s: %s", res.Status, strings.Join(strings.Fields(regres.Content), " "))
-			logging.Error(err_line)
-			return regres, errors.New(err_line)
-		}
+	// Single request with multi-type Accept header (content negotiation).
+	// The registry picks the best format it supports and returns the matching Content-Type.
+	res, err := cl.WebRequest(url, cl.acceptHeader())
+	if err != nil {
+		logging.Error(fmt.Sprintf("response is nil, %+v", err.Error()))
+		return regres, err
 	}
-	return regres, nil
+
+	logging.Debug(fmt.Sprintf("status %d, response headers %+v", res.StatusCode, res.Header))
+
+	if err := regres.FillResponse(res); err != nil {
+		err_line := fmt.Sprintf("failed to decode response %s", err.Error())
+		logging.Error(err_line)
+		return regres, errors.New(err_line)
+	}
+
+	switch res.StatusCode {
+	case 200:
+		// Success — regres.Media now holds the actual Content-Type chosen by the registry.
+		return regres, nil
+	case 401:
+		err_line := fmt.Sprintf("unauthorized: %s", strings.Join(strings.Fields(regres.Content), " "))
+		logging.Error(err_line)
+		return regres, errors.New(err_line)
+	case 404:
+		err_line := fmt.Sprintf("manifest not found: %s", strings.Join(strings.Fields(regres.Content), " "))
+		logging.Error(err_line)
+		return regres, errors.New(err_line)
+	case 400:
+		err_line := fmt.Sprintf("bad request: %s", strings.Join(strings.Fields(regres.Content), " "))
+		logging.Error(err_line)
+		return regres, errors.New(err_line)
+	default:
+		err_line := fmt.Sprintf("failed to fetch data %s: %s", res.Status, strings.Join(strings.Fields(regres.Content), " "))
+		logging.Error(err_line)
+		return regres, errors.New(err_line)
+	}
 }
