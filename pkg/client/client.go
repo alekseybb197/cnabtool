@@ -398,17 +398,25 @@ func (cl *RegClient) GetRegIndex() (*RegResponse, error) {
 			return regres, errors.New(err_line)
 		}
 
-		if res.StatusCode != 200 && res.StatusCode != 400 && res.StatusCode != 404 && res.StatusCode != 401 {
-			err_line := fmt.Sprintf("failed to fetch data %s", res.Status)
+		switch res.StatusCode {
+		case 200:
+			break
+		case 401:
+			err_line := fmt.Sprintf("unauthorized: %s", strings.Join(strings.Fields(regres.Content), " "))
+			logging.Error(err_line)
+			return regres, errors.New(err_line)
+		case 404:
+			err_line := fmt.Sprintf("manifest not found: %s", strings.Join(strings.Fields(regres.Content), " "))
+			logging.Error(err_line)
+			return regres, errors.New(err_line)
+		case 400:
+			logging.Debug(fmt.Sprintf("failed to fetch data: %s", res.Status))
+			continue
+		default:
+			err_line := fmt.Sprintf("failed to fetch data %s: %s", res.Status, strings.Join(strings.Fields(regres.Content), " "))
 			logging.Error(err_line)
 			return regres, errors.New(err_line)
 		}
-		if res.StatusCode != 200 {
-			logging.Debug(fmt.Sprintf("failed to fetch data: %s", res.Status))
-			continue
-		}
-
-		break
 	}
 	return regres, nil
 }
